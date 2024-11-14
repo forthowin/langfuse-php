@@ -1,0 +1,23 @@
+name: Run PHPUnit Tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3' # Specify the PHP version you are using
+          extensions: mbstring, intl, json, dom, pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, xml, xmlwriter, xmlreader, libxml, curl, gd, zip, bcmath, bz2, calendar, exif, fileinfo, ftp, gettext, gmp, iconv, imap, ldap, mysqli, opcache, pcntl, pspell, readline, shmop, snmp, soap, sockets, sodium, sysvmsg, sysvsem, sysvshm, tidy, tokenizer, wddx, xsl, xmlrpc, xdebug
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest
+
+      - name: Run tests
+        run: vendor/bin/phpunit
