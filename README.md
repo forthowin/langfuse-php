@@ -6,21 +6,23 @@ This library provides middleware for intercepting OpenAI API requests and respon
 
 ## Installation
 
-Install the library via Composer:
+Install the library and required dependencies via Composer:
 
 ```
 composer require langfuse/langfuse-openai-middleware
+composer require ramsey/uuid
 ```
 
 ## Configuration in Symfony
 
 ### Step 1: Define Environment Variables
 
-In your `.env` file, add your Langfuse `PUBLIC_KEY` and `SECRET_KEY`:
+In your `.env` file, add your Langfuse `PUBLIC_KEY` and `SECRET_KEY`, and your OpenAI API key:
 
 ```
 LANGFUSE_PUBLIC_KEY=your-public-key
 LANGFUSE_SECRET_KEY=your-secret-key
+OPENAI_API_KEY=your-openai-api-key
 ```
 
 ### Step 2: Register Services
@@ -28,66 +30,51 @@ LANGFUSE_SECRET_KEY=your-secret-key
 In your `config/services.yaml`, add the following service definitions:
 
 ```
-# config/services.yaml
-
 parameters:
-langfuse_config:
-public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
-secret_key: '%env(LANGFUSE_SECRET_KEY)%'
-# Optional: langfuse_base_uri: 'https://custom.langfuse.endpoint/'
+    langfuse_config:
+        public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
+        secret_key: '%env(LANGFUSE_SECRET_KEY)%'
+        # Optional: langfuse_base_uri: 'https://custom.langfuse.endpoint/'
+
+    openai_api_key: '%env(OPENAI_API_KEY)%'
 
 services:
-Langfuse\Config\Config:
-class: Langfuse\Config\Config
-arguments:
-- '%langfuse_config%'
-public: false
+    Langfuse\Config\Config:
+        class: Langfuse\Config\Config
+        arguments:
+            - '%langfuse_config%'
+        public: false
 
-    Langfuse\Client\LangfuseClient:
-        class: Langfuse\Client\LangfuseClient
+    Langfuse\Client\OpenAiFactory:
+        class: Langfuse\Client\OpenAiFactory
         arguments:
             - '@Langfuse\Config\Config'
-        public: false
-
-    Langfuse\Middleware\LangfuseMiddleware:
-        class: Langfuse\Middleware\LangfuseMiddleware
-        arguments:
-            - '@Langfuse\Client\LangfuseClient'
-        public: false
-
-    Langfuse\Client\GuzzleClientFactory:
-        class: GuzzleHttp\Client
-        factory: [Langfuse\Client\GuzzleClientFactory, create]
-        arguments:
-            - '@Langfuse\Middleware\LangfuseMiddleware'
-        public: false
-
-    OpenAI\Client:
-        class: OpenAI\Client
-        arguments:
-            - '%env(OPENAI_API_KEY)%'
-            - { http_client: '@Langfuse\Client\GuzzleClientFactory' }
+            - '%openai_api_key%'
         public: true
+
+    App\Service\OpenAIService:
+        arguments:
+            - '@Langfuse\Client\OpenAiFactory'
 ```
 
 ### Step 3: Use the OpenAI Client in Your Services
 
-Now, you can inject `OpenAI\Client` into your services or controllers as needed.
+Now, you can inject `OpenAiFactory` into your services or controllers.
 
 **Example:**
 
 ```
 namespace App\Service;
 
-use OpenAI\Client;
+use Langfuse\Client\OpenAiFactory;
 
 class OpenAIService
 {
 private $openAIClient;
 
-    public function __construct(Client $openAIClient)
+    public function __construct(OpenAiFactory $openAIFactory)
     {
-        $this->openAIClient = $openAIClient;
+        $this->openAIClient = $openAIFactory->make();
     }
 
     public function performAction()
