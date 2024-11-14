@@ -5,18 +5,17 @@ namespace Langfuse\Client;
 use OpenAI\Factory as OriginalOpenAIFactory;
 use OpenAI\Client as OpenAIClient;
 use Langfuse\Config\Config;
-use Langfuse\Client\LangfuseClient;
 use Langfuse\Middleware\LangfuseMiddleware;
 
 class OpenAiFactory
 {
     private OriginalOpenAIFactory $originalOpenAIFactory;
-    private array $langfuseConfig;
 
-    public function __construct(array $langfuseConfig)
+    public function __construct(
+        private readonly Config $langfuseConfig
+    )
     {
         $this->originalOpenAIFactory = new OriginalOpenAIFactory();
-        $this->langfuseConfig = $langfuseConfig;
     }
 
     /**
@@ -34,13 +33,11 @@ class OpenAiFactory
     /**
      * Creates the OpenAI client with the custom HTTP client including the Langfuse middleware.
      *
-     * @param array $config
      * @return OpenAIClient
      */
-    public function make(array $config = []): OpenAIClient
+    public function make(): OpenAIClient
     {
-        $langfuseConfig = new Config($this->langfuseConfig);
-        $langfuseClient = new LangfuseClient($langfuseConfig);
+        $langfuseClient = new LangfuseClient($this->langfuseConfig);
         $langfuseMiddleware = new LangfuseMiddleware($langfuseClient);
         $customGuzzleClient = GuzzleClientFactory::create($langfuseMiddleware);
 
