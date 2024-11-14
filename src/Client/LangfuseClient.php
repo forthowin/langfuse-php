@@ -3,54 +3,172 @@
 namespace Langfuse\Client;
 
 use GuzzleHttp\Client as GuzzleClient;
-use Psr\Http\Message\MessageInterface;
+use GuzzleHttp\Exception\RequestException;
 use Langfuse\Config\Config;
+use Langfuse\Event\IngestionEvent;
+use Langfuse\Event\TraceEvent;
+use Langfuse\Event\SpanEvent;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Webmozart\Assert\Assert;
 
 class LangfuseClient
 {
-    private GuzzleClient $httpClient;
+    private $httpClient;
+    private $config;
+    private $events = []; // Store events to send
 
     public function __construct(Config $config)
     {
+        $this->config = $config;
+
         $baseUri = $config->get(Config::LANGFUSE_BASE_URI, 'https://cloud.langfuse.com/');
         $publicKey = $config->get(Config::PUBLIC_KEY);
         $secretKey = $config->get(Config::SECRET_KEY);
 
-        $this->httpClient = new GuzzleClient(
-            [
-                'base_uri' => $baseUri,
-                'auth' => [$publicKey, $secretKey],
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                ],
-            ]
-        );
+        $this->httpClient = new GuzzleClient([
+                                                 'base_uri' => $baseUri,
+                                                 'auth' => [$publicKey, $secretKey], // Basic Auth
+                                                 'headers' => [
+                                                     'Content-Type' => 'application/json',
+                                                 ],
+                                             ]);
     }
 
-    public function send(string $type, MessageInterface $message): void
+    /**
+     * Processes an intercepted request.
+     *
+     * @param RequestInterface $request
+     */
+    public function processRequest(RequestInterface $request): void
     {
-        // Prepare payload
+        // Build a TraceEvent or appropriate event
+        $event = $this->buildEventFromRequest($request);
+        if ($event !== null) {
+            $this->events[] = $event->toArray();
+            $this->sendEvents();
+        }
+    }
+
+    /**
+     * Processes an intercepted response.
+     *
+     * @param ResponseInterface $response
+     * @param RequestInterface $request
+     */
+    public function processResponse(ResponseInterface $response, RequestInterface $request): void
+    {
+        // Build a SpanEvent or appropriate event
+        $event = $this->buildEventFromResponse($response, $request);
+        if ($event !== null) {
+            $this->events[] = $event->toArray();
+            $this->sendEvents();
+        }
+    }
+
+    /**
+     * Builds an event from a request.
+     *
+     * @param RequestInterface $request
+     * @return IngestionEvent|null
+     */
+    private function buildEventFromRequest(RequestInterface $request): ?IngestionEvent
+    {
+        // Extract necessary information from the request to build the event
+        // For simplicity, we'll create a TraceEvent here
+
+        $eventId = $this->generateUuid();
+        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
+
+        $event = new TraceEvent($eventId, $timestamp, [
+            'method' => $request->getMethod(),
+            'uri' => (string)$request->getUri(),
+            'headers' => $request->getHeaders(),
+            'body' => (string)$request->getBody(),
+        ]);
+
+        return $event;
+    }
+
+    /**
+     * Builds an event from a response.
+     *
+     * @param ResponseInterface $response
+     * @param RequestInterface $request
+     * @return IngestionEvent|null
+     */
+    private function buildEventFromResponse(ResponseInterface $response, RequestInterface $request): ?IngestionEvent
+    {
+        // Extract necessary information from the response to build the event
+        // For simplicity, we'll create a SpanEvent here
+
+        $eventId = $this->generateUuid();
+        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
+
+        $event = new SpanEvent($eventId, $timestamp, [
+            'status_code' => $response->getStatusCode(),
+            'reason_phrase' => $response->getReasonPhrase(),
+            'headers' => $response->getHeaders(),
+            'body' => (string)$response->getBody(),
+            'request_method' => $request->getMethod(),
+            'request_uri' => (string)$request->getUri(),
+        ]);
+
+        return $event;
+    }
+
+    /**
+     * Sends the accumulated events to Langfuse.
+     */
+    private function sendEvents(): void
+    {
+        if (empty($this->events)) {
+            return;
+        }
+
         $payload = [
-            'type' => $type,
-            'data' => [
-                'method' => $message->getMethod(),
-                'uri' => (string)$message->getUri(),
-                'headers' => $message->getHeaders(),
-                'body' => (string)$message->getBody(),
-            ],
+            'batch' => $this->events,
         ];
 
-        // Send data asynchronously
-        $this->httpClient->postAsync('/api/v1/ingest', [
-            'json' => $payload,
-        ])->then(
-            function ($response) {
-                // Handle success if needed
-            },
-            function ($exception) {
-                // Handle exceptions if needed
-                error_log('Langfuse send error: ' . $exception->getMessage());
-            }
-        );
+        try {
+            $response = $this->httpClient->post('/api/public/ingestion', [
+                'json' => $payload,
+            ]);
+
+            $this->handleResponse($response);
+            // Clear the events after successful send
+            $this->events = [];
+        } catch (RequestException $e) {
+            // Log error or handle as needed
+            error_log('Langfuse ingestion error: ' . $e->getMessage());
+            // Decide whether to clear events or retry later
+            $this->events = []; // Clearing to prevent duplication
+        }
+    }
+
+    /**
+     * Handles the API response.
+     *
+     * @param ResponseInterface $response
+     */
+    private function handleResponse(ResponseInterface $response): void
+    {
+        $statusCode = $response->getStatusCode();
+        if ($statusCode !== 200 && $statusCode !== 207) {
+            $body = (string)$response->getBody();
+            $data = json_decode($body, true);
+            $message = $data['error'] ?? 'Unknown error';
+            error_log('Langfuse API error: ' . $message);
+        }
+    }
+
+    /**
+     * Generates a UUID v4.
+     *
+     * @return string
+     */
+    private function generateUuid(): string
+    {
+        return \Ramsey\Uuid\Uuid::uuid4()->toString();
     }
 }

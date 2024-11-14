@@ -9,21 +9,21 @@ use Langfuse\Client\LangfuseClient;
 
 class LangfuseMiddleware
 {
-    private LangfuseClient $langfuseClient;
+    private $langfuseClient;
 
     public function __construct(LangfuseClient $langfuseClient)
     {
         $this->langfuseClient = $langfuseClient;
     }
 
-    public function create(): callable
+    public function create()
     {
         return Middleware::tap(
             function (RequestInterface $request) {
-                $this->langfuseClient->send('request', $request);
+                $this->langfuseClient->processRequest($request);
             },
             function (RequestInterface $request, ResponseInterface $response) {
-                $this->langfuseClient->send('response', $response);
+                $this->langfuseClient->processResponse($response, $request);
             }
         );
     }
