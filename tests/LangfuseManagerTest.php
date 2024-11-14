@@ -9,6 +9,9 @@ use PHPUnit\Framework\MockObject\MockObject;
 
 class LangfuseManagerTest extends TestCase
 {
+    private $publicKey = 'public_key';
+    private $secretKey = 'secret_key';
+
     public function testTraceIsCreated(): void
     {
         // Arrange
@@ -17,9 +20,9 @@ class LangfuseManagerTest extends TestCase
         $mockClient->expects($this->once())
             ->method('post');
 
-        $langFuseClient = new LangfuseClient('api_key', $mockClient);
+        $langFuseClient = new LangfuseClient($this->publicKey, $this->secretKey, $mockClient);
 
-        $sut = new LangfuseManager('api_key');
+        $sut = new LangfuseManager($this->publicKey, $this->secretKey);
         $reflection = new \ReflectionClass($sut);
         $property = $reflection->getProperty('client');
         $property->setValue($sut, $langFuseClient);
@@ -30,9 +33,7 @@ class LangfuseManagerTest extends TestCase
         // Assert
         $this->assertNotNull($trace);
         $this->assertNotNull($trace->getTraceId());
-        $this->assertEquals(
-            'test_trace',
-            $trace->toArray()['name']);
+        $this->assertEquals('test_trace', $trace->toArray()['name']);
     }
 
     public function testTraceIsEnded(): void
@@ -40,9 +41,9 @@ class LangfuseManagerTest extends TestCase
         // Arrange
         /** @var Client|MockObject $mockClient */
         $mockClient = $this->createMock(Client::class);
-        $langFuseClient = new LangfuseClient('api_key', $mockClient);
+        $langFuseClient = new LangfuseClient($this->publicKey, $this->secretKey, $mockClient);
 
-        $sut = new LangfuseManager('api_key');
+        $sut = new LangfuseManager($this->publicKey, $this->secretKey);
         $reflection = new \ReflectionClass($sut);
         $property = $reflection->getProperty('client');
         $property->setValue($sut, $langFuseClient);
@@ -51,10 +52,10 @@ class LangfuseManagerTest extends TestCase
         // Assert
         $mockClient->expects($this->once())
             ->method('post')
-        ->with(
-            '/trace/' . $trace->getTraceId() . '/end',
-            ['json' => []]
-        );
+            ->with(
+                '/trace/' . $trace->getTraceId() . '/end',
+                ['json' => []]
+            );
 
         // Act
         $sut->endTrace($trace);
@@ -65,9 +66,9 @@ class LangfuseManagerTest extends TestCase
         // Arrange
         /** @var Client|MockObject $mockClient */
         $mockClient = $this->createMock(Client::class);
-        $langFuseClient = new LangfuseClient('api_key', $mockClient);
+        $langFuseClient = new LangfuseClient($this->publicKey, $this->secretKey, $mockClient);
 
-        $sut = new LangfuseManager('api_key');
+        $sut = new LangfuseManager($this->publicKey, $this->secretKey);
         $reflection = new \ReflectionClass($sut);
         $property = $reflection->getProperty('client');
         $property->setValue($sut, $langFuseClient);

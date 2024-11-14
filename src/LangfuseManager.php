@@ -5,8 +5,8 @@ namespace Langfuse;
 class LangfuseManager {
     private $client;
 
-    public function __construct(string $apiKey) {
-        $this->client = new LangfuseClient($apiKey);
+    public function __construct(string $publicKey, string $secretKey) {
+        $this->client = new LangfuseClient($publicKey, $secretKey);
     }
 
     public function startTrace(string $name, array $metadata = []): Trace {

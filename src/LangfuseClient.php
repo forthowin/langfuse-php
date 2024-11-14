@@ -10,13 +10,14 @@ class LangfuseClient
     private $baseUrl = 'https://api.langfuse.com';
     private $client;
 
-    public function __construct(string $apiKey, Client $client = null)
+    public function __construct(string $publicKey, string $secretKey, Client $client = null)
     {
+        $auth = base64_encode($publicKey . ':' . $secretKey);
         $this->client = $client ?: new Client(
             [
                 'base_uri' => $this->baseUrl,
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Authorization' => 'Basic ' . $auth,
                     'Content-Type' => 'application/json'
                 ]
             ]
