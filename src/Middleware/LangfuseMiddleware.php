@@ -19,10 +19,10 @@ class LangfuseMiddleware
     public function create()
     {
         return Middleware::tap(
-            function (RequestInterface $request) {
+            function (RequestInterface $request, array $options) {
                 $this->langfuseClient->processRequest($request);
             },
-            function (RequestInterface $request, ResponseInterface $response) {
+            function (RequestInterface $request, array $options, ResponseInterface $response) {
                 $this->langfuseClient->processResponse($response, $request);
             }
         );
