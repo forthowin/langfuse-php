@@ -9,8 +9,7 @@ This library provides middleware for intercepting OpenAI API requests and respon
 Install the library and required dependencies via Composer:
 
 ```
-composer require langfuse/langfuse-openai-middleware
-composer require ramsey/uuid
+composer require janzaba/langfuse
 ```
 
 ## Configuration in Symfony
@@ -19,103 +18,74 @@ composer require ramsey/uuid
 
 In your `.env` file, add your Langfuse `PUBLIC_KEY` and `SECRET_KEY`, and your OpenAI API key:
 
-```
+```bash
 LANGFUSE_PUBLIC_KEY=your-public-key
 LANGFUSE_SECRET_KEY=your-secret-key
-OPENAI_API_KEY=your-openai-api-key
 ```
 
 ### Step 2: Register Services
 
 In your `config/services.yaml`, add the following service definitions:
 
-```
+```yaml
 parameters:
     langfuse_config:
         public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
         secret_key: '%env(LANGFUSE_SECRET_KEY)%'
         # Optional: langfuse_base_uri: 'https://custom.langfuse.endpoint/'
 
-    openai_api_key: '%env(OPENAI_API_KEY)%'
-
 services:
-    Langfuse\Config\Config:
+        Langfuse\Config\Config:
         class: Langfuse\Config\Config
         arguments:
             - '%langfuse_config%'
         public: false
 
-    Langfuse\Client\OpenAiFactory:
-        class: Langfuse\Client\OpenAiFactory
+    Langfuse\Client\LangfuseClient:
         arguments:
-            - '@Langfuse\Config\Config'
-            - '%openai_api_key%'
-        public: true
+            $config: '@Langfuse\Config\Config'
 
-    App\Service\OpenAIService:
+    Langfuse\LangfuseManager:
         arguments:
-            - '@Langfuse\Client\OpenAiFactory'
+            $langfuseClient: '@Langfuse\Client\LangfuseClient'
 ```
 
 ### Step 3: Use the OpenAI Client in Your Services
 
-Now, you can inject `OpenAiFactory` into your services or controllers.
+Now you can wrap your code with helper methods
 
-**Example:**
+#### Trace
 
-```
-namespace App\Service;
-
-use Langfuse\Client\OpenAiFactory;
-
-class OpenAIService
-{
-private $openAIClient;
-
-    public function __construct(OpenAiFactory $openAIFactory)
-    {
-        $this->openAIClient = $openAIFactory->make();
+```php
+$this->langfuseManager->withTrace(
+    'Trace name',
+    ['operation' => 'example operation name'],
+    function () {
+        // Your code here
     }
+);
+```
 
-    public function performAction()
-    {
-        $response = $this->openAIClient->chat()->create([
-            'model' => 'gpt-4',
-            'messages' => [
-                ['role' => 'user', 'content' => 'Hello!'],
-            ],
-        ]);
+#### Generation
 
-        // Your logic here
+Inside a trace you can have LLM generation.
+
+```php
+
+$answer = $this->langfuseManager->withGeneration(
+    'prompt name', 
+    'gpt-4o-mini', 
+    $prompt, 
+    function () use ($prompt) {
+        return $this->openAIClient->chat()->create(
+            [
+                'model' => 'gpt-4o-mini',
+                'messages' => $prompt,
+            ]
+        );
     }
-}
+);
 ```
-
-### Step 4: Ensure Environment Variables are Set
-
-In your `.env` file, make sure you have:
-
-```
-OPENAI_API_KEY=your-openai-api-key
-LANGFUSE_PUBLIC_KEY=your-public-key
-LANGFUSE_SECRET_KEY=your-secret-key
-```
-
-## Advanced Configuration
-
-If you need to set a custom Langfuse base URI, you can add it to the `langfuse_config` parameter:
-
-```
-parameters:
-langfuse_config:
-public_key: '%env(LANGFUSE_PUBLIC_KEY)%'
-secret_key: '%env(LANGFUSE_SECRET_KEY)%'
-langfuse_base_uri: 'https://custom.langfuse.endpoint/'
-```
-
-## Error Handling
-
-The middleware handles exceptions internally and logs any errors. You can adjust the error handling in `LangfuseClient.php` if needed.
 
 ## Contributing
 
