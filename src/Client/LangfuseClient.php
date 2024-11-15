@@ -54,7 +54,7 @@ class LangfuseClient
                 'timestamp' => $timestamp,
                 'userId' => $metadata['userId'] ?? null,
                 'metadata' => $metadata,
-                'public' => true,
+                'public' => false,
             ]
         );
         $this->events[] = $this->traceEvent->toArray();
