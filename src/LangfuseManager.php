@@ -21,4 +21,19 @@ class LangfuseManager
         return $result;
     }
 
+    public function withGeneration(
+        string $name,
+        string $modelName,
+        array $prompt,
+        callable $callback
+    ): mixed
+    {
+        $event = $this->langfuseClient->startGeneration($name, $modelName, $prompt);
+        $result = $callback();
+        $event->setOutput($result);
+        $this->langfuseClient->endGeneration($event);
+
+        return $result;
+    }
+
 }

@@ -2,6 +2,9 @@
 
 namespace Langfuse\Event;
 
+use DateTimeInterface;
+use Ramsey\Uuid\Uuid;
+
 abstract class IngestionEvent
 {
     protected $type;
@@ -25,5 +28,10 @@ abstract class IngestionEvent
             'timestamp' => $this->timestamp,
             'body' => $this->body,
         ];
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 }

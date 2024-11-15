@@ -6,6 +6,7 @@ use DateTimeInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\RequestException;
 use Langfuse\Config\Config;
+use Langfuse\Event\GenerationEvent;
 use Langfuse\Event\IngestionEvent;
 use Langfuse\Event\TraceEvent;
 use Langfuse\Event\SpanEvent;
@@ -64,6 +65,16 @@ class LangfuseClient
         $this->sendEvents();
     }
 
+    public function startGeneration(string $name, string $modelName, array $prompt): GenerationEvent
+    {
+        return GenerationEvent::create($this->traceEvent->getId(), $name, $prompt, $modelName);
+    }
+
+    public function endGeneration(GenerationEvent $event): void
+    {
+        $event->setEndTime();
+        $this->events[] = $event->toArray();
+    }
 
 
     /**
