@@ -2,6 +2,7 @@
 
 namespace Langfuse\Client;
 
+use DateTimeInterface;
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\RequestException;
 use Langfuse\Config\Config;
@@ -10,13 +11,15 @@ use Langfuse\Event\TraceEvent;
 use Langfuse\Event\SpanEvent;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Webmozart\Assert\Assert;
+use Ramsey\Uuid\Uuid;
 
 class LangfuseClient
 {
     private $httpClient;
     private $config;
     private $events = []; // Store events to send
+
+    private ?TraceEvent $traceEvent = null;
 
     public function __construct(Config $config)
     {
@@ -26,29 +29,57 @@ class LangfuseClient
         $publicKey = $config->get(Config::PUBLIC_KEY);
         $secretKey = $config->get(Config::SECRET_KEY);
 
-        $this->httpClient = new GuzzleClient([
-                                                 'base_uri' => $baseUri,
-                                                 'auth' => [$publicKey, $secretKey], // Basic Auth
-                                                 'headers' => [
-                                                     'Content-Type' => 'application/json',
-                                                 ],
-                                             ]);
+        $this->httpClient = new GuzzleClient(
+            [
+                'base_uri' => $baseUri,
+                'auth' => [$publicKey, $secretKey], // Basic Auth
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                ],
+            ]
+        );
     }
+
+    public function startTrace(string $name, array $metadata)
+    {
+        $id = Uuid::uuid4()->toString();
+        $timestamp = (new \DateTime())->format(DateTimeInterface::ATOM);
+        $this->traceEvent = new TraceEvent(
+            $id,
+            $timestamp,
+            [
+                'id' => $id,
+                'name' => $name,
+                'timestamp' => $timestamp,
+                'userId' => $metadata['userId'] ?? null,
+                'metadata' => $metadata,
+                'public' => true,
+            ]
+        );
+        $this->events[] = $this->traceEvent->toArray();
+    }
+
+    public function endTrace()
+    {
+        $this->sendEvents();
+    }
+
+
 
     /**
      * Processes an intercepted request.
      *
      * @param RequestInterface $request
      */
-    public function processRequest(RequestInterface $request): void
-    {
-        // Build a TraceEvent or appropriate event
-        $event = $this->buildEventFromRequest($request);
-        if ($event !== null) {
-            $this->events[] = $event->toArray();
-            $this->sendEvents();
-        }
-    }
+//    public function processRequest(RequestInterface $request): void
+//    {
+//        // Build a TraceEvent or appropriate event
+//        $event = $this->buildEventFromRequest($request);
+//        if ($event !== null) {
+//            $this->events[] = $event->toArray();
+//            $this->sendEvents();
+//        }
+//    }
 
     /**
      * Processes an intercepted response.
@@ -56,15 +87,15 @@ class LangfuseClient
      * @param ResponseInterface $response
      * @param RequestInterface $request
      */
-    public function processResponse(ResponseInterface $response, RequestInterface $request): void
-    {
-        // Build a SpanEvent or appropriate event
-        $event = $this->buildEventFromResponse($response, $request);
-        if ($event !== null) {
-            $this->events[] = $event->toArray();
-            $this->sendEvents();
-        }
-    }
+//    public function processResponse(ResponseInterface $response, RequestInterface $request): void
+//    {
+//        // Build a SpanEvent or appropriate event
+//        $event = $this->buildEventFromResponse($response, $request);
+//        if ($event !== null) {
+//            $this->events[] = $event->toArray();
+//            $this->sendEvents();
+//        }
+//    }
 
     /**
      * Builds an event from a request.
@@ -72,23 +103,23 @@ class LangfuseClient
      * @param RequestInterface $request
      * @return IngestionEvent|null
      */
-    private function buildEventFromRequest(RequestInterface $request): ?IngestionEvent
-    {
-        // Extract necessary information from the request to build the event
-        // For simplicity, we'll create a TraceEvent here
-
-        $eventId = $this->generateUuid();
-        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
-
-        $event = new TraceEvent($eventId, $timestamp, [
-            'method' => $request->getMethod(),
-            'uri' => (string)$request->getUri(),
-            'headers' => $request->getHeaders(),
-            'body' => (string)$request->getBody(),
-        ]);
-
-        return $event;
-    }
+//    private function buildEventFromRequest(RequestInterface $request): ?IngestionEvent
+//    {
+//        // Extract necessary information from the request to build the event
+//        // For simplicity, we'll create a TraceEvent here
+//
+//        $eventId = $this->generateUuid();
+//        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
+//
+//        $event = new TraceEvent($eventId, $timestamp, [
+//            'method' => $request->getMethod(),
+//            'uri' => (string)$request->getUri(),
+//            'headers' => $request->getHeaders(),
+//            'body' => (string)$request->getBody(),
+//        ]);
+//
+//        return $event;
+//    }
 
     /**
      * Builds an event from a response.
@@ -97,25 +128,25 @@ class LangfuseClient
      * @param RequestInterface $request
      * @return IngestionEvent|null
      */
-    private function buildEventFromResponse(ResponseInterface $response, RequestInterface $request): ?IngestionEvent
-    {
-        // Extract necessary information from the response to build the event
-        // For simplicity, we'll create a SpanEvent here
-
-        $eventId = $this->generateUuid();
-        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
-
-        $event = new SpanEvent($eventId, $timestamp, [
-            'status_code' => $response->getStatusCode(),
-            'reason_phrase' => $response->getReasonPhrase(),
-            'headers' => $response->getHeaders(),
-            'body' => (string)$response->getBody(),
-            'request_method' => $request->getMethod(),
-            'request_uri' => (string)$request->getUri(),
-        ]);
-
-        return $event;
-    }
+//    private function buildEventFromResponse(ResponseInterface $response, RequestInterface $request): ?IngestionEvent
+//    {
+//        // Extract necessary information from the response to build the event
+//        // For simplicity, we'll create a SpanEvent here
+//
+//        $eventId = $this->generateUuid();
+//        $timestamp = (new \DateTime())->format(\DateTime::ATOM);
+//
+//        $event = new SpanEvent($eventId, $timestamp, [
+//            'status_code' => $response->getStatusCode(),
+//            'reason_phrase' => $response->getReasonPhrase(),
+//            'headers' => $response->getHeaders(),
+//            'body' => (string)$response->getBody(),
+//            'request_method' => $request->getMethod(),
+//            'request_uri' => (string)$request->getUri(),
+//        ]);
+//
+//        return $event;
+//    }
 
     /**
      * Sends the accumulated events to Langfuse.
@@ -167,8 +198,8 @@ class LangfuseClient
      *
      * @return string
      */
-    private function generateUuid(): string
-    {
-        return \Ramsey\Uuid\Uuid::uuid4()->toString();
-    }
+//    private function generateUuid(): string
+//    {
+//        return \Ramsey\Uuid\Uuid::uuid4()->toString();
+//    }
 }
