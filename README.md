@@ -17,7 +17,7 @@ composer require janzaba/langfuse
 
 ### Step 1: Define Environment Variables
 
-In your `.env` file, add your Langfuse `PUBLIC_KEY` and `SECRET_KEY`, and your OpenAI API key:
+In your `.env` file, add your Langfuse `PUBLIC_KEY` and `SECRET_KEY`:
 
 ```bash
 LANGFUSE_PUBLIC_KEY=your-public-key
