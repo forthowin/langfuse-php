@@ -2,7 +2,8 @@
 
 ## Introduction
 
-This library provides middleware for intercepting OpenAI API requests and responses in PHP applications, sending them to Langfuse for monitoring and analysis. It is designed to be easily integrated into Symfony projects, leveraging Symfony's dependency injection mechanism.
+This library provides wraper functions to use Langfuse LLM monitoring for your application. 
+It was build for Symfony but can be used in any PHP application.
 
 ## Installation
 
