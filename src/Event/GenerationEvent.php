@@ -48,15 +48,6 @@ class GenerationEvent extends IngestionEvent
                 'endTime' => null, // use setEndTime() to set
                 'completionStartTime' => $timestamp,
                 'model' => $model,
-                'usage' => (object) [
-                    'input' => null,
-                    'output' => null,
-                    'total' => null,
-                    'unit' => 'TOKENS',
-                    'inputCost' => null,
-                    'outputCost' => null,
-                    'totalCost' => null,
-                ],
 //                'promptName' => $name, // makes some problems dunno why
                 'promptVersion' => null,
             ]
